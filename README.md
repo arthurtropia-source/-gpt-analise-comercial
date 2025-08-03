@@ -1,0 +1,1 @@
+# -gpt-analise-comercial
