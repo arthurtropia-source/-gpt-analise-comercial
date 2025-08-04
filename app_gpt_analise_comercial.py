@@ -1,13 +1,14 @@
 
 import streamlit as st
-import openai
 import pandas as pd
+from openai import OpenAI
 
 # ---- CONFIGURAÇÃO ----
 st.set_page_config(page_title="GPT Analista Comercial", layout="wide")
 st.title("🧠 GPT Analista Comercial – Supermercados Feira Nova")
 
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+# ---- CONECTAR À API OPENAI ----
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # ---- CARREGAR INSTRUÇÕES GPT ----
 with open("instrucoes_gpt_analista.txt", "r", encoding="utf-8") as f:
@@ -52,7 +53,7 @@ if all(col in df.columns for col in ["Dpto", "Venda", "Lucro", "Custo"]):
         resumo_markdown = resumo.to_markdown(index=False)
         prompt = f"{instrucoes_gpt}\n\nBase de dados resumida por departamento:\n\n{resumo_markdown}\n\nPergunta:\n{user_input}"
         with st.spinner("Consultando GPT..."):
-            response = openai.chat.completions.create(
+            response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.3,
