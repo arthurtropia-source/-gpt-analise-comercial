@@ -1,7 +1,7 @@
 
 import streamlit as st
 import pandas as pd
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 
 # ---- CONFIGURAÇÃO ----
 st.set_page_config(page_title="GPT Analista Comercial", layout="wide")
@@ -9,6 +9,9 @@ st.title("🧠 GPT Analista Comercial – Supermercados Feira Nova")
 
 # ---- CONECTAR À API OPENAI ----
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+# ---- LISTA DE MODELOS EM ORDEM DE PRIORIDADE ----
+modelos_prioridade = ["gpt-4o", "gpt-4", "gpt-3.5-turbo"]
 
 # ---- CARREGAR INSTRUÇÕES GPT ----
 with open("instrucoes_gpt_analista.txt", "r", encoding="utf-8") as f:
@@ -52,15 +55,27 @@ if all(col in df.columns for col in ["Dpto", "Venda", "Lucro", "Custo"]):
     if st.button("Enviar ao GPT") and user_input:
         resumo_markdown = resumo.to_markdown(index=False)
         prompt = f"{instrucoes_gpt}\n\nBase de dados resumida por departamento:\n\n{resumo_markdown}\n\nPergunta:\n{user_input}"
-        with st.spinner("Consultando GPT..."):
-            response = client.chat.completions.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=1500
-            )
-            resposta = response.choices[0].message.content
+
+        resposta = None
+        for modelo in modelos_prioridade:
+            try:
+                with st.spinner(f"Consultando GPT com o modelo {modelo}..."):
+                    response = client.chat.completions.create(
+                        model=modelo,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.3,
+                        max_tokens=1500
+                    )
+                    resposta = response.choices[0].message.content
+                    st.success(f"Resposta gerada com sucesso usando o modelo {modelo}.")
+                    break
+            except OpenAIError as e:
+                st.warning(f"Erro com modelo {modelo}. Tentando o próximo...")
+
+        if resposta:
             st.markdown("### 📈 Resposta do GPT")
             st.write(resposta)
+        else:
+            st.error("Nenhum modelo pôde ser acessado com a sua chave atual. Verifique a API key.")
 else:
     st.error("A planilha precisa conter as colunas: Dpto, Venda, Lucro e Custo.")
